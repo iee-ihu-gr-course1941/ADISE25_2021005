@@ -1,0 +1,87 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family:Arial, Helvetica, sans-serif;
+
+}
+body{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    min-width: 100vw;
+    background-color: #3f704d ;
+    text-align: center;
+}
+
+#Backgammon_table{
+    background-color: #c08552;
+    border: 20px solid #5e3023;
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 840px;
+}
+.board_section{
+    margin: 0;
+    height: 250px;
+    width: 60px;
+    border: none;
+    position: relative;
+    vertical-align: top;
+}
+
+.triangle{
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.triangle.down{
+    clip-path: polygon(0% 0%, 100% 0%, 50% 85%);
+}
+
+.triangle.up{
+    clip-path: polygon(0% 100%, 100% 100%, 50% 15%);
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.triangle.odd{
+    background-color: #744e2d;
+}
+.triangle.even{
+    background-color: #d79e6c;
+}
+
+.bar_center{
+    width: 80px ;
+    height: 100%;
+    background-color: #5e3023;
+    color: white;
+    text-align: center;
+    vertical-align: middle;
+
+}
+
+.debug_number{
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    left: 0;
+}
+
+.triangle.down .debug_number{
+    top: 25px;
+}
+
+.triangle.up .debug_number{
+    bottom: 25px;
+}
+
+
+
+
+
+
