@@ -1,30 +1,21 @@
 
 -- Creation and selection of the database
+DROP DATABASE IF EXISTS `webgame`;
 CREATE DATABASE IF NOT EXISTS `webgame`;
 USE `webgame`;
 
-
--- Table that handles multiple games
-CREATE TABLE IF NOT EXISTS `games` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `p_turn` enum('W','B') DEFAULT 'W',
-  `dice_roll` varchar(20) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC;
-
-
 -- Board Table
+DROP TABLE IF EXISTS `board`;
 CREATE TABLE IF NOT EXISTS `board` (
-  `game_id` INT NOT NULL,
   `point_id` INT NOT NULL,
   `piece_color` enum('W','B') DEFAULT NULL,
   `point_count` INT DEFAULT 0,
-  PRIMARY KEY (`game_id`,`point_id`),
-  CONSTRAINT `fkey_board` FOREIGN KEY (`game_id`) REFERENCES `games` (`id`) ON DELETE CASCADE
+  PRIMARY KEY (`point_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC;
 
 
 -- Starting Board Table
+DROP TABLE IF EXISTS `empty_board`;
 CREATE TABLE IF NOT EXISTS `empty_board` (
   `point_id` INT NOT NULL,
   `piece_color` enum('W','B') DEFAULT NULL,
@@ -61,37 +52,82 @@ INSERT INTO `empty_board` (`point_id`, `piece_color`, `point_count`) VALUES
 
 
 -- Status Table
+DROP TABLE IF EXISTS `game_status`;
 CREATE TABLE IF NOT EXISTS `game_status` (
-  `game_id` INT NOT NULL,
   `current_status` enum('not active','initialized','started','ended','aborted') NOT NULL DEFAULT 'not active',
-  `result` enum('W','B') DEFAULT NULL,
-  `last_change` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`game_id`),
-  CONSTRAINT `fkey_game_status` FOREIGN KEY (`game_id`) REFERENCES `games` (`id`) ON DELETE CASCADE
+  `id` INT NOT NULL DEFAULT 1,
+  `current_turn` ENUM('W','B') DEFAULT NULL,
+  `first_dice` TINYINT DEFAULT NULL,
+  `second_dice` TINYINT DEFAULT NULL,
+  `white_collected` TINYINT DEFAULT 0,
+  `black_collected` TINYINT DEFAULT 0,
+  `result_of_match` enum('W','B') DEFAULT NULL,
+  `last_change` timestamp NULL DEFAULT current_timestamp() ON UPDATE CURRENT_TIMESTAMP(),
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC;
 
+INSERT IGNORE INTO `game_status` (current_status, id) VALUES ('not active',1);
 
 -- Players Table
+DROP TABLE IF EXISTS `players`;
 CREATE TABLE IF NOT EXISTS `players` (
-  `id` INT NOT NULL AUTO_INCREMENT,
   `username` varchar(20) DEFAULT NULL,
-  `game_id` INT DEFAULT NULL,
   `piece_color` enum('W','B') DEFAULT NULL,
   `token` varchar(100) DEFAULT NULL,
   `last_action` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`id`),
-  KEY `game_id` (`game_id`),
-  CONSTRAINT `fkey_players` FOREIGN KEY (`game_id`) REFERENCES `games` (`id`) ON DELETE SET NULL
+  PRIMARY KEY (`piece_color`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC;
 
 
 -- Clean Board Procedure
+DROP PROCEDURE IF EXISTS `clean_board`;
 DELIMITER //
-CREATE PROCEDURE `clean_board`(IN target_game_id INT)
+CREATE PROCEDURE `clean_board`()
 BEGIN 
-REPLACE INTO board (game_id, point_id, piece_color, point_count) 
-SELECT 
-target_game_id,point_id, piece_color, point_count
-FROM empty_board;
+REPLACE INTO board (point_id, piece_color, point_count) 
+SELECT * FROM empty_board;
+
+UPDATE game_status
+SET current_status='started',
+    current_turn='W',
+    first_dice=NULL,
+    second_dice=NULL,
+    white_collected=0,
+    black_collected=0,
+    result_of_match=NULL
+WHERE id=1;
+    
 END//
 DELIMITER ;
+
+-- Piece moving procedure
+DROP PROCEDURE IF EXISTS `move_piece`;
+DELIMITER // 
+CREATE PROCEDURE `move_piece`(IN p_from INT, IN p_to INT)
+BEGIN
+	DECLARE v_moving_color ENUM('W','B');
+	
+	START TRANSACTION;
+	
+	SELECT piece_color INTO v_moving_color 
+	FROM board WHERE point_id=p_from;
+	
+	UPDATE board 
+	SET point_count = point_count-1
+	WHERE point_id = p_from;
+	
+	UPDATE board
+	SET piece_color = NULL
+	WHERE point_id = p_from AND point_count = 0;
+	
+	UPDATE board
+	SET point_count = point_count +1, 
+	piece_color = v_moving_color 
+	WHERE point_id = p_to;
+	
+	COMMIT;
+END //
+DELIMITER ;
+	
+	
+	
