@@ -5,21 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Welcome</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="js/backgammon.js"></script>
 </head>
 <body>
-    <div class="wrapper">
-        <form action="MatchPage.html" method="post">
-            <h1>Welcome to Backgammon!</h1>
-            <div class="input-box">
-                <input type="text" name="username-input" placeholder="Username" required >
-            </div>
-            <div class="Submit-box">
-                <input type="submit" name="submit-button" class="queue-button" value="Start Queueing!">
-            </div>
-        </form>
-        <div class="text">
+    <div class="wrapper" id="login-screen">
+        <h1>Welcome to Backgammon!</h1>
+        <div class="input-box">
+            <input type="text" id="username-input" placeholder="Username">
+            <select id="pcolor">
+                <option value="W">White</option>
+                <option value="B">Black</option>
+            </select>
+        </div>
+        <div class="Submit-box">
+            <button type="button" id="queue-button">Start Queueing!</button>
+        </div>
+    </div>
+    <div class="second-wrapper" id="game-screen" style="display: none;">
+    <div class="board_header">
+        <h1>LIVE MATCH</h1>
+    </div>
+    <div id="main-container">
+    <div id="board" class="backgammon_board"></div>
+    <div id="side-container">
+        <div id="option-button-container">
+            <button id="refresh_backgammon_game">Refresh</button>
+            <button id="quit_backgammon_game">Quit</button>
+        </div>
+    <div id="status-display" class="status"></div>
     </div>
     </div>
-    
+
+</div>
 </body>
 </html>

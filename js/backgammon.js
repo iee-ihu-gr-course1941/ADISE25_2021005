@@ -64,13 +64,47 @@ function drawEmptyBoard(selector){
     container.innerHTML = t;
 }
 */
+var me = {}
+
+var game_status = {}
+
 
 $( function() {
-    drawEmptyBoard('W');
-    fill_board();
+    $('#queue-button').click(login_to_game);
+    $('#refresh-backgammon-game').click(fill_board);
+});
 
-    $('#reset_backgammon_game').click(reset_board);
-})
+function game_status_update(){
+    $.ajax(
+        {
+            url: "backgammon.php/status/",
+            success: update_status
+        }
+    )
+}
+
+function update_status(data){
+    if(game_status.p_turn==null||
+        data[0].current_turn!=game_status.p_turn||
+        data[0].current_status!=game_status.status){
+        fill_board();
+    }
+
+    game_status=data[0];
+    update_info();
+    if(game_status.p_turn==me.selected_color && me.selected_color!=null){
+        check_dice();
+        //setTimeout(function(){game_status_update();},15000);
+        }
+    else{
+        check_dice();
+        //setTimeout(function(){game_status_update();},4000);
+    }
+}
+
+function update_info(){
+
+}
 
 function reset_board(){
     $.ajax(
@@ -107,7 +141,7 @@ function drawEmptyBoard(pawn_color){
         for(var i = 1;i<=6;i++){
             t+= makeCell(i,'down');
         }
-        t+= '<td class="bar_center"><div class="dice" id="dice_1">1</div></td>';
+        t+= '<td class="bar_center"><div class="dice" id="dice_1"></div></td>';
         for(var i = 7;i<=12;i++){
             t+= makeCell(i,'down');
         }
@@ -116,7 +150,7 @@ function drawEmptyBoard(pawn_color){
         for(var j = 24;j>=19;j--){
             t+= makeCell(j,'up');
         }
-        t+='<td class="bar_center"><div class="dice" id="dice_2">2</div></td>';
+        t+='<td class="bar_center"><div class="dice" id="dice_2"></div></td>';
         for(var j = 18;j>=13;j--){
             t+= makeCell(j,'up');
         }
@@ -127,7 +161,7 @@ function drawEmptyBoard(pawn_color){
         for(var i = 13;i<=18;i++){
             t+= makeCell(i,'down');
         }
-        t+= '<td class="bar_center"><div class="dice" id="dice_1">1</div></td>';
+        t+= '<td class="bar_center"><div class="dice" id="dice_1"></div></td>';
         for(var i = 19;i<=24;i++){
             t+= makeCell(i,'down');
         }
@@ -136,7 +170,7 @@ function drawEmptyBoard(pawn_color){
         for(var j = 12;j>=7;j--){
             t+= makeCell(j,'up');
         }
-        t+='<td class="bar_center"><div class="dice" id="dice_2">2</div></td>';
+        t+='<td class="bar_center"><div class="dice" id="dice_2"></div></td>';
         for(var j = 6;j>=1;j--){
             t+= makeCell(j,'up');
         }
@@ -144,6 +178,8 @@ function drawEmptyBoard(pawn_color){
     }
     t+= '</table>';
     $('#board').html(t);
+    $('#dice_1').click(click_dice_action);
+    $('#dice_2').click(click_dice_action);
 }
 
 function fill_board_by_data(data){
@@ -163,3 +199,76 @@ function fill_board_by_data(data){
 
 }
 
+function login_to_game(){
+    if($('#username-input').val()==''){
+        alert('You must enter a Username.');
+        return;
+    }
+    var p_color = $('#pcolor').val();
+
+    // Makes the login box disappear.
+    $('#login-screen').hide();
+
+    // Makes the game screen appear
+    $('#game-screen').show();
+
+    // Sets up the board
+    drawEmptyBoard(p_color);
+    fill_board();
+
+    // Sets up the player
+    $.ajax({
+        url: "backgammon.php/players/"+p_color,
+        method: "PUT",
+        dataType: "json",
+        contentType: "application/json",
+        data: JSON.stringify( {username:$('#username-input').val(),piece_color:p_color}),
+        success: login_result,
+        error: login_error
+    });
+}
+
+function login_result(data){
+    me = data[0];
+    update_info();
+    game_status_update();
+}
+
+function login_error(data,y,z,c){
+    var x = data.responseJSON;
+    alert(x.errormesg);
+
+}
+
+function check_dice(){
+    $('.dice').removeClass('glow-my-turn glow-opponent');
+
+    if(game_status.p_turn==null) {
+        return;
+    }
+
+    if(game_status.first_dice!=null){
+        return;
+    }
+
+    if(game_status.p_turn==me.selected_color){
+        $('.dice').addClass('glow-my-turn');
+    }
+    else{
+        $('.dice').addClass('glow-opponent');
+    }
+}
+
+
+function click_dice_action(){
+    if($(this).hasClass('glow-my-turn')){
+        $('.dice').removeClass('glow-my-turn');
+    }
+
+    call_dice_roll();
+
+}
+
+function call_dice_roll(){
+    
+}

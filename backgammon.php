@@ -37,6 +37,9 @@ switch ($r = array_shift($request)) {
     case 'player':
         handle_player($method,$request,$input);
         break;
+    case 'roll':
+        handle_dice($method,$input);
+        break;
     default:
         header("HTTP/1.1 404 Not Found");
         break;
@@ -54,7 +57,12 @@ function handle_board($method){
     }
 }
 function handle_piece($method,$point_id,$input){
-
+    if($method=='GET'){
+        show_piece($point_id);
+    }
+    elseif($method=='PUT'){
+        move_piece($point_id,$input['point_id'],$input['token']);
+    }
 }
 
 function handle_status($method){
@@ -84,6 +92,16 @@ function handle_player($method,$p,$input){
             header("HTTP/1.1 404 Not Found");
             break;
     }
+}
+
+function handle_dice($method,$input){
+    if($method=='POST'){
+        generate_dice_roll($input['token']);
+    }
+    else{
+        header('HTTP/1.1 405 Method Not Allowed');
+    }
+
 }
 
 ?>
