@@ -205,7 +205,7 @@ body{
     align-items: center;
 }
 
-#refresh_backgammon_game{
+#refresh-backgammon-game{
     color: #fff;
     background-color: #5a9157;
     width: 80px;
@@ -218,11 +218,11 @@ body{
     transition: background-color 0.3s ease;
 }
 
-#refresh_backgammon_game:hover{
+#refresh-backgammon-game:hover{
     background-color: #54a36e;
 }
 
-#quit_backgammon_game{
+#quit-backgammon-game{
     color: #fff;
     background-color: #d03711;
     width: 80px;
@@ -235,7 +235,7 @@ body{
     transition: background-color 0.3s ease;
 }
 
-#quit_backgammon_game:hover{
+#quit-backgammon-game:hover{
     background-color: #912c0d;
 }
 
@@ -259,10 +259,14 @@ body{
 }
 
 #status-display{
-    height: 80%;
+    height: 40%;
     width: 100%;
     border: 2px solid rgba(255,255,255,0.2);
     border-radius: 20px;
+    color: #fff;
+    padding: 20px 45px 20px 20px;
+    font-size: 18px;
+    text-align: center;
 }
 
 #main-container{
@@ -272,19 +276,21 @@ body{
 }
 
 #side-container{
-    height: 500px;
+    height: 600px;
     width: 300px;
     margin-left: 40px;
 }
 
-.bar_center
-
 .dice{
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 40px;
     height: 40px;
     border-radius: 5px;
     background-color: #fff;
     margin: 0 auto;
+    color: #333;
 }
 
 .dice.glow-my-turn{
@@ -295,4 +301,71 @@ body{
 .dice.glow-opponent{
     cursor:default;
     box-shadow: 0 0 15px 5px #e94434;
+}
+
+#debug-controls{
+    margin-top: 50px;
+    margin-bottom: 20px;
+    height: 30%;
+}
+
+#debug-from{
+    width: 45%;
+    height: 40px;
+    border-radius: 40px;
+    border-color: rgba(255, 255, 255, 0.2);
+    border-width: 2px;
+    background: transparent;
+    font-size: 16px;
+    padding: 20px 45px 20px 20px;
+    outline: none;
+    color: #fff;
+    margin-right: 5%;
+}
+
+#debug-from::placeholder{
+    color: #fff;
+}
+
+#debug-to{
+    width: 45%;
+    height: 40px;
+    border-radius: 40px;
+    border-color: rgba(255, 255, 255, 0.2);
+    border-width: 2px;
+    background: transparent;
+    font-size: 16px;
+    padding: 20px 45px 20px 20px;
+    outline: none;
+    color: #fff;
+}
+
+#debug-to::placeholder{
+    color: #fff;
+}
+
+#move-button{
+    width: 100%;
+    height: 40px;
+    background-color: #fff;
+    outline: none;
+    border-radius: 40px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    font-size: 16px;
+    color: #333;
+    border-width: 0px;
+    font-weight: 600;
+    margin-top: 20px;
+    transition: background-color 0.3s ease;
+}
+
+#move-button:hover{
+    background-color: #e9e9e9;
+}
+
+.board_header{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
 }

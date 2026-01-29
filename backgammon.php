@@ -34,7 +34,7 @@ switch ($r = array_shift($request)) {
             header("HTTP/1.1 404 Not Found");
         }
         break;
-    case 'player':
+    case 'players':
         handle_player($method,$request,$input);
         break;
     case 'roll':

@@ -64,15 +64,17 @@ function drawEmptyBoard(selector){
     container.innerHTML = t;
 }
 */
-var me = {}
+var me = {};
 
-var game_status = {}
-
+var game_status = {};
 
 $( function() {
     $('#queue-button').click(login_to_game);
     $('#refresh-backgammon-game').click(fill_board);
+    $('#quit-backgammon-game').click(reset_board);
+    $('#move-button').click(do_move);
 });
+
 
 function game_status_update(){
     $.ajax(
@@ -80,30 +82,76 @@ function game_status_update(){
             url: "backgammon.php/status/",
             success: update_status
         }
-    )
+    );
 }
 
 function update_status(data){
-    if(game_status.p_turn==null||
-        data[0].current_turn!=game_status.p_turn||
-        data[0].current_status!=game_status.status){
+    if(game_status.current_turn==null||
+        data[0].current_turn!=game_status.current_turn||
+        data[0].current_status!=game_status.current_status){
+        update_players_lists();
         fill_board();
     }
 
     game_status=data[0];
     update_info();
-    if(game_status.p_turn==me.selected_color && me.selected_color!=null){
-        check_dice();
-        //setTimeout(function(){game_status_update();},15000);
+    if(game_status.current_turn==me.piece_color && me.piece_color!=null){
+        if(game_status.first_dice!=null||game_status.second_dice!=null||game_status.third_dice!=null||game_status.fourth_dice!=null){
+            $('#debug-controls').show();
+        }
+        else{
+            check_dice();
+        }
+        setTimeout(function(){game_status_update();},2000);
         }
     else{
+        $('#debug-controls').hide();
         check_dice();
-        //setTimeout(function(){game_status_update();},4000);
+        setTimeout(function(){game_status_update();},2000);
     }
 }
 
 function update_info(){
+    $('#status-display').html('I am the '+me.piece_color+' player<br>'+
+        ((game_status.current_turn)?('It is '+game_status.current_turn+'s turn'):'The game hasnt started yet')+
+        ((game_status.first_dice!=null||game_status.second_dice!=null||game_status.third_dice!=null||game_status.fourth_dice!=null)?'<br>Available advances: ':'')+
+        ((game_status.first_dice!=null)?game_status.first_dice:'')+' '+
+        ((game_status.second_dice!=null)?game_status.second_dice:'')+' '+
+        ((game_status.third_dice!=null)?game_status.third_dice:'')+' '+
+        ((game_status.fourth_dice!=null)?game_status.fourth_dice:''));
+    if(game_status.first_dice!=null){
+        $('#dice_1').html(game_status.first_dice);
+    }
+    if(game_status.second_dice!=null){
+        $('#dice_2').html(game_status.second_dice);
+    }
 
+}
+
+function update_players_lists(){
+    $.ajax({
+        method: "get",
+            url: "backgammon.php/players/",
+            dataType: "json",
+            success: add_player_info
+    });
+}
+
+function add_player_info(data){
+
+    var w_score = (game_status&&game_status.white_collected)?game_status.white_collected:0;
+    var b_score = (game_status&&game_status.black_collected)?game_status.black_collected:0;
+
+    for(var i=0;i<data.length;i++){
+        var val = data[i];
+    
+    if(val.piece_color=='W'){
+        $('#playerW_info').html(val.username+' W '+w_score);
+    }
+    else{
+        $('#playerB_info').html(val.username+' B '+b_score);
+    }
+}
 }
 
 function reset_board(){
@@ -113,7 +161,7 @@ function reset_board(){
             url: "backgammon.php/board/",
             success: fill_board_by_data
         }
-    )
+    );
 }
 
 function fill_board(){
@@ -123,7 +171,7 @@ function fill_board(){
             url: "backgammon.php/board/",
             success: fill_board_by_data
         }
-    )
+    );
 }
 
 function drawEmptyBoard(pawn_color){
@@ -243,7 +291,7 @@ function login_error(data,y,z,c){
 function check_dice(){
     $('.dice').removeClass('glow-my-turn glow-opponent');
 
-    if(game_status.p_turn==null) {
+    if(game_status.current_turn==null) {
         return;
     }
 
@@ -251,7 +299,7 @@ function check_dice(){
         return;
     }
 
-    if(game_status.p_turn==me.selected_color){
+    if(game_status.current_turn==me.piece_color){
         $('.dice').addClass('glow-my-turn');
     }
     else{
@@ -270,5 +318,62 @@ function click_dice_action(){
 }
 
 function call_dice_roll(){
-    
+    $.ajax({
+        url:"backgammon.php/roll/",
+        method: "POST",
+        dataType: "json",
+        contentType: "application/json",
+        data: JSON.stringify({token: me.token }),
+        success: update_status
+    });
+}
+
+function do_move(){
+
+    if($('#debug-from').val()==''||$('#debug-to').val()==''){
+        alert('You must fill both fields');
+        return;
+    }
+        var from_val = $('#debug-from').val();
+        var to_val = $('#debug-to').val();
+    if(me.piece_color=='W'){
+        var from_ID = 25-from_val;
+        var to_ID = 25-to_val;
+    }
+
+    else{
+        if(from_val<=12){
+            var from_ID = 13-from_val;
+        }
+        else{
+            var from_ID = 37-from_val;
+        }
+        if(to_val<=12){
+            var to_ID = 13-to_val;
+        }
+        else{
+            var to_ID = 37-to_val;
+        }
+    }
+
+    $.ajax({
+        url:"backgammon.php/board/piece/"+from_ID,
+        method: "PUT",
+        dataType: "json",
+        contentType: "application/json",
+        data: JSON.stringify({point_id: to_ID,token: me.token }),
+        success: move_result,
+        error:handle_move_error
+    });
+}
+
+function move_result(data){
+    $('#debug-from').val('');
+    $('#debug-to').val('');
+    fill_board_by_data(data);
+    game_status_update();
+}
+
+function handle_move_error(data){
+alert('an error happened');
 }

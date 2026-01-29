@@ -55,18 +55,18 @@ INSERT INTO `empty_board` (`point_id`, `piece_color`, `point_count`) VALUES
 DROP TABLE IF EXISTS `game_status`;
 CREATE TABLE IF NOT EXISTS `game_status` (
   `current_status` enum('not active','initialized','started','ended','aborted') NOT NULL DEFAULT 'not active',
-  `id` INT NOT NULL DEFAULT 1,
   `current_turn` ENUM('W','B') DEFAULT NULL,
   `first_dice` TINYINT DEFAULT NULL,
   `second_dice` TINYINT DEFAULT NULL,
+  `third_dice` TINYINT DEFAULT NULL,
+  `fourth_dice` TINYINT DEFAULT NULL,
   `white_collected` TINYINT DEFAULT 0,
   `black_collected` TINYINT DEFAULT 0,
   `result_of_match` enum('W','B') DEFAULT NULL,
-  `last_change` timestamp NULL DEFAULT current_timestamp() ON UPDATE CURRENT_TIMESTAMP(),
-  PRIMARY KEY (`id`)
+  `last_change` timestamp NULL DEFAULT current_timestamp() ON UPDATE CURRENT_TIMESTAMP()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC;
 
-INSERT IGNORE INTO `game_status` (current_status, id) VALUES ('not active',1);
+INSERT INTO `game_status` (`current_status`) VALUES ('not active');
 
 -- Players Table
 DROP TABLE IF EXISTS `players`;
@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS `players` (
   PRIMARY KEY (`piece_color`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC;
 
+INSERT INTO `players` (`piece_color`) VALUES ('W'),('B');
 
 -- Clean Board Procedure
 DROP PROCEDURE IF EXISTS `clean_board`;
@@ -86,16 +87,19 @@ CREATE PROCEDURE `clean_board`()
 BEGIN 
 REPLACE INTO board (point_id, piece_color, point_count) 
 SELECT * FROM empty_board;
+    
+UPDATE players SET username = NULL, token = NULL;
 
-UPDATE game_status
-SET current_status='started',
-    current_turn='W',
-    first_dice=NULL,
-    second_dice=NULL,
-    white_collected=0,
-    black_collected=0,
-    result_of_match=NULL
-WHERE id=1;
+UPDATE game_status SET 
+	current_status='not active',
+	current_turn=NULL,
+	first_dice=NULL,
+	second_dice=NULL,
+	third_dice=NULL,
+	fourth_dice=NULL,
+	white_collected=0,
+	black_collected=0,
+	result_of_match=NULL;
     
 END//
 DELIMITER ;
@@ -128,6 +132,5 @@ BEGIN
 	COMMIT;
 END //
 DELIMITER ;
-	
 	
 	

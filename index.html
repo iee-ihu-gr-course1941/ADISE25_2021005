@@ -23,17 +23,27 @@
         </div>
     </div>
     <div class="second-wrapper" id="game-screen" style="display: none;">
-    <div class="board_header">
-        <h1>LIVE MATCH</h1>
-    </div>
     <div id="main-container">
-    <div id="board" class="backgammon_board"></div>
+    <div>
+        <div class="board_header">
+            <h2 id="playerW_info">Waiting...</h1>
+            <h1>LIVE MATCH</h1>
+            <h2 id="playerB_info">Waiting...</h1>
+        </div>
+        <div id="board" class="backgammon_board"></div>
+    </div>
     <div id="side-container">
         <div id="option-button-container">
-            <button id="refresh_backgammon_game">Refresh</button>
-            <button id="quit_backgammon_game">Quit</button>
+            <button id="refresh-backgammon-game">Refresh</button>
+            <button id="quit-backgammon-game">Quit</button>
         </div>
     <div id="status-display" class="status"></div>
+    <div id="debug-controls">
+        <h3>Select move</h3>
+        <input type="text" id="debug-from" placeholder="From ID">
+        <input type="text" id="debug-to" placeholder="To ID">
+        <button id="move-button">Submit Move</button>
+    </div>
     </div>
     </div>
 
