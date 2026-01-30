@@ -1,4 +1,6 @@
 <?php
+
+//Returns the board for the API
 function show_board(){
     global $mysqli;
 
@@ -10,6 +12,7 @@ function show_board(){
     print json_encode($res->fetch_all(MYSQLI_ASSOC), JSON_PRETTY_PRINT);
 }
 
+//Returns the board for other functions to use
 function read_board(){
     global $mysqli;
 
@@ -20,14 +23,23 @@ function read_board(){
     return($res->fetch_all(MYSQLI_ASSOC));
 }
 
-function reset_board(){
+//Resets the board for the API
+function reset_board($input){
     global $mysqli;
 
+    if(current_color($input['token'])!=null){
     $sql = 'call clean_board()';
     $mysqli->query($sql);
     show_board();
+    }
+    else{
+        header("HTTP/1.1 400 Bad Request");
+        print json_encode(['errormesg'=>'You dont have access to do that']);
+        exit;
+    }
 }
 
+//Returns the information of a single board segment (mainly for CLI)
 function show_piece($point_id){
     global $mysqli;
 
@@ -40,6 +52,7 @@ function show_piece($point_id){
     print json_encode($res->fetch_all(MYSQLI_ASSOC), JSON_PRETTY_PRINT);
 }
 
+//Generates the dice and updates the DB
 function generate_dice_roll($token){
     global $mysqli;
 
@@ -63,9 +76,9 @@ function generate_dice_roll($token){
     $st = $mysqli->prepare($sql);
     $st->bind_param('iiii',$d1,$d2,$d3,$d4);
     $st->execute();
-
 }
 
+//handles moving the checkers
 function move_piece($point_id,$point_id_to,$token){
     global $mysqli;
     $my_color = validate_action($token,'move');
@@ -74,6 +87,150 @@ function move_piece($point_id,$point_id_to,$token){
         return;
     }
 
+    $allowed_values = ['first_dice','second_dice','third_dice','fourth_dice'];
+
+    //in the case of collection (final part of the game) changes moving logic
+    if($point_id_to==0){
+        if(!check_collection_phase($my_color)){
+            header("HTTP/1.1 400 Bad Request");
+            print json_encode(['errormesg'=>'You cannot collect unless all pieces are in your home board']);
+            exit;
+        }
+
+        $needed_die = ($my_color == 'W')? $point_id : ($point_id-12);
+        $status = read_status();
+        $dice = [];
+        if($status['first_dice']!=null){
+            $dice['first_dice'] = $status['first_dice'];
+        }
+        if($status['second_dice']!=null){
+            $dice['second_dice'] = $status['second_dice'];
+        }
+        if($status['third_dice']!=null){
+            $dice['third_dice'] = $status['third_dice'];
+        }
+        if($status['fourth_dice']!=null){
+            $dice['fourth_dice'] = $status['fourth_dice'];
+        }
+
+        $dice_used= null;
+
+        foreach($dice as $die=>$val){
+            if($val==$needed_die){
+                $dice_used=$die;
+                break;
+            }
+        }
+        if($dice_used==null){
+           foreach($dice as $die=>$val){
+                if($val>$needed_die){
+                    $is_furtest=true;
+                    if($my_color=='W'){
+                        $sql="select count(*) as c from board where piece_color='W' and point_id>?";
+                    }
+                    else{
+                        $sql="select count(*) as c from board where piece_color='B' and point_id>? and point_id<=18";
+                    }
+                    $st = $mysqli->prepare($sql);
+                    $st->bind_param('i',$point_id);
+                    $st->execute();
+                    $res=$st->get_result();
+                    $check = $res->fetch_assoc();
+                    $st->close();
+
+                    if($check['c']==0){
+                        $dice_used=$die;
+                        break;
+                    }
+                }
+            } 
+        }
+
+        if($dice_used==null){
+            header("HTTP/1.1 400 Bad Request");
+            print json_encode(['errormesg'=>'Invalid collection move']);
+            exit;
+        }
+        if(in_array($dice_used,$allowed_values)){
+
+            $sql = "update board set point_count = point_count-1 where point_id=?";
+            $st = $mysqli->prepare($sql);
+            $st->bind_param('i',$point_id);
+            $st->execute();
+            $st->close();
+
+            $sql = "update board set piece_color = null where point_id=? and point_count=0";
+            $st = $mysqli->prepare($sql);
+            $st->bind_param('i',$point_id);
+            $st->execute();
+            $st->close();
+
+            $sql = "update game_status set $dice_used = null";
+            $st= $mysqli->prepare($sql);
+            $st->execute();
+            $st->close();
+
+            $col_score = ($my_color=='W')?'white_collected':'black_collected';
+            $sql = "update game_status set $col_score = $col_score + 1";
+            $st= $mysqli->prepare($sql);
+            $st->execute();
+            $st->close();
+
+            $sql="select sum(point_count) as total from board where piece_color=?";
+            $st = $mysqli->prepare($sql);
+            $st->bind_param('s',$my_color);
+            $st->execute();
+            $res=$st->get_result();
+            $rem = $res->fetch_assoc();
+            $st->close();
+
+            //handles winning
+            if($rem['total']==0){
+                $sql = "update game_status set current_status='ended', result_of_match = ?, current_turn=null";
+                $st = $mysqli->prepare($sql);
+                $st->bind_param('s',$my_color);
+                $st->execute();
+                $st->close();
+            }
+            else{
+                //checks if stalemate and turn change
+                $status = read_status();
+
+                $dice_left = ($status['first_dice']!=null||$status['second_dice']!=null||$status['third_dice']!=null||$status['fourth_dice']!=null);
+                
+                if($dice_left){
+                    if(!any_moves_available($my_color)){
+                        $sql="update game_status set first_dice=null, second_dice=null, third_dice=null, fourth_dice=null";
+                        $st = $mysqli->prepare($sql);
+                        $st->execute();
+                        $st->close();
+                        $dice_left=false;
+                    }
+
+                }
+                
+                if(!$dice_left){
+                    $sql = "update game_status set current_turn = IF(current_turn='W','B','W')";
+                    $st = $mysqli->prepare($sql);
+                    $st->execute();
+                    $st->close();
+                }
+
+            }
+            header('Content-type: application/json');
+            print json_encode(read_board(), JSON_PRETTY_PRINT);
+            exit;
+        }
+    }
+
+    //Checks bountries
+    if($point_id_to>24||$point_id_to<1){
+        header("HTTP/1.1 400 Bad Request");
+        print json_encode(['errormesg'=>'This move is not allowed']);
+        exit;
+    }
+
+    //Handles normal moving logic
     $distance = $point_id-$point_id_to;
 
     if($distance<0){
@@ -97,6 +254,7 @@ function move_piece($point_id,$point_id_to,$token){
         $dice_slots['fourth_dice']=$status['fourth_dice'];
     }
 
+    //handles different dice combinations
     $dice_used = [];
     $found_match = false;
 
@@ -137,8 +295,10 @@ function move_piece($point_id,$point_id_to,$token){
         }
     }
 
+    //Returns error if the move cant work with the dice at hand
     if($found_match==null){
         header("HTTP/1.1 400 Bad Request");
+        print json_encode(['errormesg'=>'This move isnt allowed']);
         exit;
     }
 
@@ -149,8 +309,10 @@ function move_piece($point_id,$point_id_to,$token){
     $res=$st->get_result();
     $source = $res->fetch_assoc();
 
+    //Returns error if player tries to move from a place they dont have a piece on
     if($source['piece_color']!=$my_color||$source['point_count']==0){
         header("HTTP/1.1 400 Bad Request");
+        print json_encode(['errormesg'=>'You dont have a piece here']);
         exit;
     }
 
@@ -158,18 +320,22 @@ function move_piece($point_id,$point_id_to,$token){
     $st->execute();
     $res=$st->get_result();
     $dest = $res->fetch_assoc();
+    $st->close();
 
+    //Returns error if player tries to move a piece on top of an opponents piece
     if($dest['piece_color']!=$my_color&&$dest['point_count']>0){
         header("HTTP/1.1 400 Bad Request");
+        print json_encode(['errormesg'=>'You cant move onto opponents pieces']);
         exit;
     }
 
-    $sql='call move_piece(?,?)';
-    $st2 = $mysqli->prepare($sql);
-    $st2->bind_param('ii',$point_id,$point_id_to);
-    $st2->execute();
 
-    $allowed_values = ['first_dice','second_dice','third_dice','fourth_dice'];
+    //calls the procedure to move pieces within the DB
+    $sql='call move_piece(?,?)';
+    $st = $mysqli->prepare($sql);
+    $st->bind_param('ii',$point_id,$point_id_to);
+    $st->execute();
+    $st->close();
 
     foreach($dice_used as $col){
         if(!in_array($col,$allowed_values)){
@@ -177,25 +343,43 @@ function move_piece($point_id,$point_id_to,$token){
         }
 
         $sql = "update game_status set $col = null";
-        $st3 = $mysqli->prepare($sql);
-        $st3->execute();
+        $st = $mysqli->prepare($sql);
+        $st->execute();
+        $st->close();
 
     }
 
+    //Handles stalemate and turn change
     $status = read_status();
-    if($status['first_dice']==null&&$status['second_dice']==null&&$status['third_dice']==null&&$status['fourth_dice']==null){
-        $sql = "update game_status set current_turn = IF(current_turn='W','B','W')";
-        $st4 = $mysqli->prepare($sql);
-        $st4->execute();
-    }
 
+    $dice_left = ($status['first_dice']!=null||$status['second_dice']!=null||$status['third_dice']!=null||$status['fourth_dice']!=null);
+    
+    if($dice_left){
+        if(!any_moves_available($my_color)){
+            $sql="update game_status set first_dice=null, second_dice=null, third_dice=null, fourth_dice=null";
+            $st = $mysqli->prepare($sql);
+            $st->execute();
+            $st->close();
+            $dice_left=false;
+        }
+
+    }
+    
+    if(!$dice_left){
+        $sql = "update game_status set current_turn = IF(current_turn='W','B','W')";
+        $st = $mysqli->prepare($sql);
+        $st->execute();
+        $st->close();
+    }
 
     header('Content-type: application/json');
     print json_encode(read_board(), JSON_PRETTY_PRINT);
-
 }
 
+//Checks if the player is allowed to act based on different situations
 function validate_action($token,$action_name){
+    global $mysqli;
+
     if($token==null||$token==''){
         header("HTTP/1.1 400 Bad Request");
         print json_encode(['errormesg'=>'token is not set']);
@@ -246,11 +430,17 @@ function validate_action($token,$action_name){
             break;
     }
 
+    //Makes sure players dont abort
+    $sql='update players set last_action = NOW() where piece_color=?';
+    $st = $mysqli->prepare($sql);
+    $st->bind_param('s',$color);
+    $st->execute();
+    $st->close();
+
     return $color;
-
-
 }
 
+//Checks if the collection phase has started
 function check_collection_phase($color){
     global $mysqli;
 
@@ -267,6 +457,80 @@ function check_collection_phase($color){
     $collection = $res->fetch_assoc();
 
     return ($collection['c']==0);
+}
+
+//Checks if the player has any available moves
+function any_moves_available($color){
+    global $mysqli;
+
+    $status=read_status();
+    $dice=[];
+    if($status['first_dice']!=null){
+        $dice[] = $status['first_dice'];
+    }
+    if($status['second_dice']!=null){
+        $dice[] = $status['second_dice'];
+    }
+    if($status['third_dice']!=null){
+        $dice[] = $status['third_dice'];
+    }
+    if($status['fourth_dice']!=null){
+        $dice[] = $status['fourth_dice'];
+    }
+
+    if(empty($dice)){
+        return false;
+    }
+
+    $sql='select point_id from board where piece_color = ?';
+    $st = $mysqli->prepare($sql);
+    $st->bind_param('s',$color);
+    $st->execute();
+    $res=$st->get_result();
+    $pieces = $res->fetch_all(MYSQLI_ASSOC);
+    $st->close();
+
+    $can_collect = check_collection_phase($color);
+
+    foreach($pieces as $p){
+        $from = $p['point_id'];
+        foreach($dice as $die){
+            $target = $from - $die;
+            if($color=='W'){
+                if($target<1){
+                    if($can_collect){
+                        return true;
+                    }
+                    continue;
+                }
+            }
+            if($color=='B'){
+                if($from<=12 && $target<1){
+                    $target+=24;
+                }
+                elseif($from>=13 && $target<13){
+                    if($can_collect){
+                        return true;
+                    }
+                    continue;
+                }
+            }
+
+            $sql = 'select piece_color from board where point_id=?';
+            $st = $mysqli->prepare($sql);
+            $st->bind_param('i',$target);
+            $st->execute();
+            $res=$st->get_result();
+            $spot = $res->fetch_assoc();
+            $st->close();
+
+            if($spot['piece_color']==null||$spot['piece_color']==$color){
+                return true;
+            }
+        }
+    }
+    return false;
+
 }
 
 ?>

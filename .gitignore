@@ -3,3 +3,5 @@ lib/db_upass.php
 db_upass.php
 *.log
 log/*
+*.logs
+logs/*
