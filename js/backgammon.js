@@ -146,10 +146,10 @@ function add_player_info(data){
         var val = data[i];
     
     if(val.piece_color=='W'){
-        $('#playerW_info').html(val.username+' W '+w_score);
+        $('#playerW_info').text(val.username+' W '+w_score);
     }
     else{
-        $('#playerB_info').html(val.username+' B '+b_score);
+        $('#playerB_info').text(val.username+' B '+b_score);
     }
 }
 }
